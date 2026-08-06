@@ -4,6 +4,7 @@ Uso: python cli.py catalogo_final.json
 """
 
 from catalogo import Catalogo
+catalogo = Catalogo("catalogo_final.json")
 
 def terminal():
     while True:
@@ -90,4 +91,6 @@ def terminal():
                     print("Fila atual:")
                     for conteudo_id in fila_atual:
                         print(conteudo_id)
+            case 0:
+                break
 terminal()
