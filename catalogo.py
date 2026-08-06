@@ -8,7 +8,7 @@ import json
 
 class Catalogo:
     def __init__(self, caminho_json: str):
-        with open(caminho_json, "r", encoding="utf-8") as arquivo:
+        with open("miniprojeto-1/catalogo_final.json", encoding="utf-8") as arquivo:
             self.dados = json.load(arquivo)
 
         self.id_usuarios = {}
@@ -69,7 +69,7 @@ class Catalogo:
     
     # --- dados de um conteúdo ---
     def rating_de(self, conteudo_id: str) -> float | None:
-        conteudo = self.id_conteudos.get(conteudo_id)
+        conteudo = self.conteudos.get(conteudo_id)
         if conteudo is None:
             return None
         if "rating" not in conteudo:
@@ -77,7 +77,7 @@ class Catalogo:
         return float(conteudo["rating"])
 
     def duracao_total_de(self, conteudo_id: str) -> int | None:
-        conteudo = self.id_conteudos.get(conteudo_id)
+        conteudo = self.conteudos.get(conteudo_id)
         if conteudo is None:
             return None
         if conteudo["tipo"] == "musica":
@@ -90,7 +90,7 @@ class Catalogo:
         return total
 
     def generos_de(self, conteudo_id: str) -> list[str] | None:
-        conteudo = self.id_conteudos.get(conteudo_id)
+        conteudo = self.conteudos.get(conteudo_id)
         if conteudo is None:
             return None
         return sorted(self._achatar_generos(conteudo["generos"]))
@@ -109,13 +109,13 @@ class Catalogo:
         return achatados
 
     def plataformas_de(self, conteudo_id: str) -> list[str] | None:
-        conteudo = self.id_conteudos.get(conteudo_id)
+        conteudo = self.conteudos.get(conteudo_id)
         if conteudo is None:
             return None
         return sorted(conteudo.get("plataformas", []))
 
     def data_adicionado_de(self, conteudo_id: str) -> str | None:
-        conteudo = self.id_conteudos.get(conteudo_id)
+        conteudo = self.conteudos.get(conteudo_id)
         if conteudo is None:
             return None
         data = conteudo["data_adicionado"]
@@ -125,7 +125,7 @@ class Catalogo:
         return data
 
     def execucoes_de(self, conteudo_id: str) -> int | None:
-        conteudo = self.id_conteudos.get(conteudo_id)
+        conteudo = self.conteudos.get(conteudo_id)
         if conteudo is None:
             return None
         execucoes = conteudo["engajamento"]["execucoes"]
@@ -135,7 +135,7 @@ class Catalogo:
 
     def conteudos_do_genero(self, genero: str) -> list[str]:
         resultado = []
-        for conteudo_id in self.id_conteudos:
+        for conteudo_id in self.conteudos:
             generos = self.generos_de(conteudo_id)
             if genero in generos:
                 resultado.append(conteudo_id)
@@ -160,3 +160,21 @@ class Catalogo:
         
     def fila_atual(self) -> list[str]:
         return self.fila_musicas[:]
+
+
+
+
+    def titulo_de(self, conteudo_id: str) -> str | None:
+        conteudo = self.conteudos.get(conteudo_id)
+        if conteudo is None:
+            return None
+
+        titulo = conteudo["titulo"]
+        tipo = conteudo["tipo"]
+
+        if tipo == "musica":
+            artista = conteudo.get("artista", "artista desconhecido")
+            return f"{titulo}, de {artista}"
+
+        artista = conteudo.get("artista", conteudo.get("autor", "artista desconhecido"))
+        return f"{titulo}, de {artista} ({tipo})"
