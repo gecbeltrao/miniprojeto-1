@@ -3,8 +3,12 @@
 Uso: python cli.py catalogo_final.json
 """
 
+import os
 from catalogo import Catalogo
-catalogo = Catalogo("catalogo_final.json")
+
+pasta_do_script = os.path.dirname(os.path.abspath(__file__))
+caminho_catalogo = os.path.join(pasta_do_script, "catalogo_final.json")
+catalogo = Catalogo(caminho_catalogo)
 
 def formatar_duracao(segundos: int) -> str:
     minutos = segundos // 60
@@ -26,7 +30,11 @@ def terminal():
         print("8. Tocar próximo da fila")
         print("9. Ver fila atual")
         print("0. Sair")
-        op = int(input("Digite sua opção: "))
+        entrada = input("Digite sua opção: ")
+        if not entrada.isdigit():
+            print("Opção inválida, digite um número.")
+            continue
+        op = int(entrada)
         match op:
             case 1:
                 usuarios = catalogo.listar_usuarios()
@@ -53,7 +61,11 @@ def terminal():
                 else:
                     playlist = catalogo.playlist_de(usuario_id)
                     print(f"Playlist de {nome} tem {len(playlist)} itens (posições 1 a {len(playlist)}).")
-                    posicao_digitada = int(input("Posição: "))
+                    entrada_posicao = input("Posição: ")
+                    if not entrada_posicao.isdigit():
+                        print("Posição inválida, digite um número.")
+                        continue
+                    posicao_digitada = int(entrada_posicao)
                     posicao = posicao_digitada - 1
                     conteudo_id = catalogo.conteudo_na_posicao(usuario_id, posicao)
                     if conteudo_id is None:
@@ -118,7 +130,7 @@ def terminal():
                 if proximo_conteudo is None:
                     print("Fila de reprodução vazia.")
                 else:
-                    print(f"Tocando próximo conteúdo: {proximo_conteudo}")
+                    print(f"Tocando próximo conteúdo: {catalogo.titulo_de(proximo_conteudo)}")
             case 9:
                 fila_atual = catalogo.fila_atual()
                 if len(fila_atual) == 0:
