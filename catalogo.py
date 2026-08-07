@@ -9,7 +9,7 @@ from collections import deque
 
 class Catalogo:
     def __init__(self, caminho_json: str):
-        with open("miniprojeto-1/catalogo_final.json", encoding="utf-8") as arquivo:
+        with open(caminho_json, "r", encoding="utf-8") as arquivo:
             self.dados = json.load(arquivo)
 
         self.id_usuarios = {}
@@ -176,5 +176,6 @@ class Catalogo:
         titulo = conteudo["titulo"]
         artista = conteudo.get("artista", conteudo.get("autor", "artista desconhecido"))
         tipo = conteudo["tipo"]
-        return f"{titulo} — {artista} ({tipo})"
+        tipo_exibicao = {"musica": "música", "album": "álbum"}.get(tipo, tipo)
+        return f"{titulo} — {artista} ({tipo_exibicao})"
 
