@@ -5,6 +5,7 @@ Esta é a peça central do projeto: carrega o JSON uma vez, constrói os
 """
 
 import json
+from collections import deque
 
 class Catalogo:
     def __init__(self, caminho_json: str):
@@ -30,7 +31,7 @@ class Catalogo:
             conteudo_id = conteudo["id"]
             self.conteudos[conteudo_id] = conteudo
 
-        self.fila_musicas = []
+        self.fila_musicas = deque()
 
 
 
@@ -128,7 +129,15 @@ class Catalogo:
         conteudo = self.conteudos.get(conteudo_id)
         if conteudo is None:
             return None
-        execucoes = conteudo["engajamento"]["execucoes"]
+
+        engajamento = conteudo.get("engajamento")
+        if engajamento is None:
+            return None
+
+        execucoes = engajamento.get("execucoes")
+        if execucoes is None:
+            return None
+
         if isinstance(execucoes, str):
             execucoes = execucoes.replace(",", "")
         return int(execucoes)
@@ -143,23 +152,18 @@ class Catalogo:
 
     # --- fila de reprodução ---
     def enfileirar(self, conteudo_id: str) -> bool:
-
-        if conteudo_id not in self.id_conteudo:
-            print(f"Conteúdo {conteudo_id} não encontrado.")
+        if conteudo_id not in self.conteudos:
             return False
-
         self.fila_musicas.append(conteudo_id)
         return True
 
-    def proximo(self) -> str | None: 
-        if self.fila_musicas:
-            return self.fila_musicas.pop(0)
-        else:
-            print("Fila vazia")
+    def proximo(self) -> str | None:
+        if not self.fila_musicas:
             return None
-        
+        return self.fila_musicas.popleft()
+
     def fila_atual(self) -> list[str]:
-        return self.fila_musicas[:]
+        return list(self.fila_musicas)
 
 
 
@@ -170,11 +174,7 @@ class Catalogo:
             return None
 
         titulo = conteudo["titulo"]
-        tipo = conteudo["tipo"]
-
-        if tipo == "musica":
-            artista = conteudo.get("artista", "artista desconhecido")
-            return f"{titulo}, de {artista}"
-
         artista = conteudo.get("artista", conteudo.get("autor", "artista desconhecido"))
-        return f"{titulo}, de {artista} ({tipo})"
+        tipo = conteudo["tipo"]
+        return f"{titulo} — {artista} ({tipo})"
+
