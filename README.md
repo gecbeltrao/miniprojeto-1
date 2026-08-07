@@ -1,84 +1,85 @@
-# TrilhaSonora — Mini-Projeto
+# TrilhaSonora
 
-## Como rodar
+## Rodando o projeto
 
+Pra abrir o menu interativo:
 ```powershell
 python cli.py
 ```
-Abre o menu interativo. Carrega `catalogo_final.json` automaticamente (caminho
-resolvido a partir da pasta do próprio script, não da pasta de onde o comando
-é chamado).
+Ele já carrega o `catalogo_final.json` sozinho, não precisa passar caminho.
 
+Pro modo batch:
 ```powershell
 python main.py
 ```
-Modo batch. Pede o caminho de `consultas.json` e o caminho de saída para
-`respostas.json`.
+Ele pergunta o caminho do `consultas.json` e onde salvar o `respostas.json`.
 
+Pra conferir se as respostas batem com o gabarito público:
 ```powershell
 python conferir.py
 ```
-Compara `respostas.json` com `gabarito_publico.json` e reporta quantas das
-20 consultas públicas bateram.
 
-## Decisões de modelagem
+## Sobre as classes
 
-Optei por **não criar classes como `Musica`, `Album` ou `Usuario`**. Cada
-conteúdo e cada usuário continuam sendo os dicionários que vêm direto do
-JSON, guardados dentro dos índices da `Catalogo`. A razão: nenhuma dessas
-estruturas teria comportamento próprio, só campos — tudo que fariam é
-guardar dado, e um dicionário já faz isso sem precisar de uma classe em
-volta.
+Só criei uma classe mesmo, a `Catalogo`. Pensei em fazer `Musica`, `Album`,
+`Usuario` também, mas não vi motivo — elas não iam fazer nada além de
+guardar campo que já vem pronto do JSON. A `Catalogo` é diferente porque
+carrega o JSON uma vez, monta uns índices no `__init__`, e os 16 métodos
+usam esses índices o tempo todo. Sem os índices os métodos não funcionam,
+e os índices sozinhos não servem pra nada — então faz sentido os dois
+estarem juntos numa classe.
 
-A única classe do projeto é a `Catalogo`, e ela se justifica porque agrupa
-estado (os índices construídos no `__init__`) com comportamento (os 16
-métodos que consultam esse estado) que pertencem juntos: os métodos não
-fazem sentido sem os índices, e os índices não servem pra nada sem os
-métodos que os consultam.
+## Os índices que montei no `__init__`
 
-### Índices construídos no `__init__`
+- `id_usuarios`: dicionário `id -> usuário`, pra achar um usuário na hora
+  sem ter que percorrer a lista toda de novo.
+- `nome_usuarios`: dicionário `nome em minúsculo -> id`. Já guardo em
+  minúsculo pra busca não se importar com maiúscula/minúscula, sem
+  precisar tratar isso toda vez que alguém busca.
+- `conteudos`: mesma lógica, `id -> conteúdo`.
 
-- `id_usuarios` (`{id: usuario}`): acesso direto a um usuário por id, usado
-  por `playlist_de`, `conteudo_na_posicao` e `intersecao_playlists`.
-- `nome_usuarios` (`{nome.lower(): id}`): resolve nome → id em O(1) e já
-  cobre a busca case-insensitive (regra 4) sem precisar normalizar em cada
-  chamada.
-- `conteudos` (`{id: conteudo}`): acesso direto a um conteúdo por id, usado
-  por todos os métodos de "dados de um conteúdo".
+Gênero eu não consegui indexar direito. Não dá pra saber de antemão quais
+gêneros existem, e o campo vem bagunçado — às vezes é string solta, às
+vezes lista dentro de lista. Aí o `conteudos_do_genero` varre o catálogo
+inteiro mesmo, usando o `generos_de` (que já resolve essa bagunça) pra
+cada item. Não é o jeito mais rápido, mas com 20 mil itens ainda dá conta.
 
-**O que não dá pra indexar:** `conteudos_do_genero`. Gênero não é uma chave
-fixa no JSON — está espalhado (às vezes string solta, às vezes lista
-aninhada em até 3 níveis) e não sabemos os valores possíveis com
-antecedência. Um índice `genero -> [ids]` até seria possível construir no
-`__init__` achatando tudo uma vez, mas o método atual resolve com uma
-varredura em `conteudos_do_genero`, reaproveitando `generos_de` (que já
-achata e ordena) para cada item. Funciona porque cada chamada percorre 20
-mil itens uma única vez, e as consultas desse tipo não dominam o volume do
-`consultas.json`.
+## A fila usa deque, não lista
 
-### Fila de reprodução
+No começo usei lista e funcionava, mas `list.pop(0)` pra tirar o primeiro
+da fila é lento — tem que empurrar todo mundo um lugar pra trás. Troquei
+pra `collections.deque`, que tira e põe dos dois lados sem esse custo.
+Faz mais sentido pra fila, é literalmente pra isso que ela existe.
 
-`fila_musicas` usa `collections.deque` em vez de `list`. `enfileirar` só
-faz `append` (O(1) no fim); `proximo` faz `popleft` (O(1) no início) — com
-`list.pop(0)` isso seria O(n), porque desloca todos os elementos restantes.
+## As sujeiras dos dados
 
-### As 7 sujeiras tratadas
+Essas foram as que encontrei e tratei:
 
-| Sujeira | Onde | Tratamento |
-|---|---|---|
-| `rating` ausente ou como string | `rating_de` | `.get()` + `float()` |
-| Álbum sem execuções (`engajamento` ausente) | `execucoes_de` | `.get()` em cascata, retorna `None` |
-| Execuções como string com vírgula | `execucoes_de` | `.replace(",", "")` antes de `int()` |
-| Data em `DD/MM/YYYY` | `data_adicionado_de` | detecta `"/"`, reordena pra ISO |
-| Gêneros como string solta ou lista aninhada | `generos_de` | achatamento com pilha (`_achatar_generos`) |
-| Faixa de álbum com `duracao_seg: null` | `duracao_total_de` | soma ignorando `None` |
-| Conteúdo sem plataformas | `plataformas_de` | `.get("plataformas", [])` |
+- **Rating ausente ou vindo como string** — confiro se a chave existe
+  antes, e converto com `float()`.
+- **Álbum sem execuções registradas** — álbum não tem o campo
+  `engajamento` que música tem, então uso `.get()` em vez de acessar
+  direto e devolvo `None` quando não existe.
+- **Execuções com vírgula separando milhar** (tipo `"12,500,000"`) —
+  tiro a vírgula antes de converter pra `int`.
+- **Data em dois formatos** — a maioria vem `AAAA-MM-DD`, mas tem uns
+  casos em `DD/MM/AAAA`. Detecto pela barra e reordeno.
+- **Gênero bagunçado** — string solta ou lista aninhada em até uns 3
+  níveis. Resolvi com uma função que usa pilha pra achatar tudo numa
+  lista só.
+- **Faixa de álbum com duração nula** — quando somo a duração das
+  faixas, ignoro as que vierem `null`.
+- **Conteúdo sem plataforma nenhuma** — devolvo lista vazia em vez de
+  quebrar.
 
-Tratamento é pontual (um `.get()` ou `if` por sujeira conhecida), não um
-`try/except` genérico envolvendo o método inteiro — cada sujeira tem uma
-causa conhecida e um tratamento específico pra ela.
+Não usei `try/except` genérico em lugar nenhum. Preferi tratar cada
+sujeira no ponto exato onde ela aparece — eu sei exatamente quais são
+essas 7, então não faz sentido "proteger" o código de coisa que eu já
+sei que não vai acontecer.
 
-## Verificação
+## Testando
 
-`conferir.py` roda contra as 20 consultas de `gabarito_publico.json` e
-reporta acertos, erradas e ausentes separadamente. Resultado atual: **20/20**.
+Rodei o `conferir.py` contra o `gabarito_publico.json` e bateu 20/20.
+Também testei clonando o repositório numa pasta separada e rodando tudo
+de novo do zero, só pra garantir que não ficou nada dependendo de algum
+arquivo esquecido na minha pasta de trabalho.
